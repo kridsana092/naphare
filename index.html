@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Tic Tac Toe: นะ vs แพร</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background-color: #fcefe9;
+      padding-top: 50px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    #playerChoice {
+      margin-bottom: 20px;
+    }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-gap: 5px;
+      justify-content: center;
+      margin: 20px auto;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      background-color: #fff;
+      border: 2px solid #e0a899;
+      font-size: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    }
+    #message {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #ffa9a3;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+</head>
+<body>
+  <h1>เกม Tic Tac Toe: <strong>นะ</strong> vs <strong>แพร</strong></h1>
+  <div id="playerChoice">
+    <p>เลือกฝั่งของคุณ:</p>
+    <button onclick="selectPlayer('นะ')">เล่นเป็น นะ</button>
+    <button onclick="selectPlayer('แพร')">เล่นเป็น แพร</button>
+  </div>
+  <div id="board"></div>
+  <div id="message"></div>
+  <button onclick="resetGame()">เริ่มใหม่</button>
+  <audio id="laughSound" src="https://www.myinstants.com/media/sounds/cartoon-funny.mp3" preload="auto"></audio>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCpeAdavAVwptDfBNqGv4cboRKeCV5ilJs",
+      authDomain: "tic-tac-toe-naphae.firebaseapp.com",
+      databaseURL: "https://tic-tac-toe-naphe-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "tic-tac-toe-naphae",
+      storageBucket: "tic-tac-toe-naphae.firebasestorage.app",
+      messagingSenderId: "516763299633",
+      appId: "1:516763299633:web:2c088b245065ef73574a10"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const board = document.getElementById("board");
+    const message = document.getElementById("message");
+    const laughSound = document.getElementById("laughSound");
+    const playerChoice = document.getElementById("playerChoice");
+
+    let selectedPlayer = null;
+
+    function selectPlayer(player) {
+      selectedPlayer = player;
+      playerChoice.style.display = "none";
+    }
+
+    function renderBoard(state) {
+      board.innerHTML = "";
+      state.forEach((cell, i) => {
+        const cellDiv = document.createElement("div");
+        cellDiv.classList.add("cell");
+        cellDiv.textContent = cell;
+        cellDiv.addEventListener("click", () => makeMove(i));
+        board.appendChild(cellDiv);
+      });
+    }
+
+    function makeMove(index) {
+      if (!selectedPlayer) return alert("กรุณาเลือกฝั่งก่อนเริ่มเล่น!");
+
+      db.ref("game").once("value", snapshot => {
+        const data = snapshot.val();
+        if (!data || data.board[index] || data.winner) return;
+
+        if (data.currentPlayer !== selectedPlayer) return;
+
+        data.board[index] = selectedPlayer;
+        const winner = checkWinner(data.board);
+
+        db.ref("game").set({
+          board: data.board,
+          currentPlayer: selectedPlayer === "นะ" ? "แพร" : "นะ",
+          winner: winner
+        });
+      });
+    }
+
+    function checkWinner(board) {
+      const winPatterns = [
+        [0,1,2], [3,4,5], [6,7,8],
+        [0,3,6], [1,4,7], [2,5,8],
+        [0,4,8], [2,4,6]
+      ];
+      for (let pattern of winPatterns) {
+        const [a,b,c] = pattern;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+          const loser = board[a] === "นะ" ? "แพร" : "นะ";
+          message.textContent = `${board[a]} ตีหัว ${loser}`;
+          laughSound.play();
+          return board[a];
+        }
+      }
+      if (board.every(cell => cell)) {
+        message.textContent = "เสมอกัน!";
+        return "draw";
+      }
+      return null;
+    }
+
+    function resetGame() {
+      db.ref("game").set({
+        board: Array(9).fill(""),
+        currentPlayer: "นะ",
+        winner: null
+      });
+    }
+
+    db.ref("game").on("value", snapshot => {
+      const data = snapshot.val();
+      if (data) {
+        renderBoard(data.board);
+        if (!data.winner) {
+          message.textContent = `ถึงตา ${data.currentPlayer}`;
+        }
+      }
+    });
+
+    resetGame();
+  </script>
+</body>
+</html>
